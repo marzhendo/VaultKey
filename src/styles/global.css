@@ -1,0 +1,32 @@
+@import "./tokens.css";
+@import "./reset.css";
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  user-select: none;
+  overflow: hidden;
+}
+
+code, pre, .mono {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 13px;
+}
+
+h1, h2, h3, h4 {
+  font-weight: 500;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  outline: none;
+}
+
+input {
+  outline: none;
+}

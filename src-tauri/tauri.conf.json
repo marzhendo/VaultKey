@@ -1,0 +1,35 @@
+{
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devPath": "http://localhost:1420",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "VaultKey",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": true
+    },
+    "bundle": {
+      "active": true,
+      "category": "DeveloperTool",
+      "icon": [],
+      "identifier": "com.vaultkey.app",
+      "targets": "all"
+    },
+    "windows": [
+      {
+        "title": "VaultKey",
+        "width": 800,
+        "height": 560,
+        "minWidth": 800,
+        "minHeight": 560,
+        "resizable": true,
+        "decorations": true
+      }
+    ]
+  }
+}
