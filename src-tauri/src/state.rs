@@ -1,49 +1,33 @@
 use std::sync::Mutex;
+use rusqlite::Connection;
 use zeroize::Zeroize;
-use crate::commands::entries::VaultEntryDetail;
 
-pub struct KeyState(pub Option<[u8; 32]>);
+pub struct EncryptionKey(pub [u8; 32]);
 
-impl Zeroize for KeyState {
-    fn zeroize(&mut self) {
-        if let Some(ref mut key) = self.0 {
-            key.zeroize();
-        }
-        self.0 = None;
+impl Drop for EncryptionKey {
+    fn drop(&mut self) {
+        self.0.zeroize(); // secure wipe from memory when dropped
     }
 }
 
 pub struct AppState {
-    pub key: Mutex<KeyState>,
-    pub db: Mutex<Vec<VaultEntryDetail>>,
+    pub db: Mutex<Connection>,
+    pub encryption_key: Mutex<Option<EncryptionKey>>,
 }
 
-impl Default for AppState {
-    fn default() -> Self {
+impl AppState {
+    pub fn new(conn: Connection) -> Self {
         Self {
-            key: Mutex::new(KeyState(None)),
-            db: Mutex::new(vec![
-                VaultEntryDetail {
-                    id: 1,
-                    category: "Google".to_string(),
-                    title: "Google Account".to_string(),
-                    username: Some("user@gmail.com".to_string()),
-                    password: Some("google_pass_123".to_string()),
-                    url: Some("https://google.com".to_string()),
-                    notes: Some("Personal account".to_string()),
-                    is_favorite: false,
-                },
-                VaultEntryDetail {
-                    id: 2,
-                    category: "Campus".to_string(),
-                    title: "Campus WiFi".to_string(),
-                    username: Some("student_id".to_string()),
-                    password: Some("campus_wifi_secret".to_string()),
-                    url: None,
-                    notes: Some("WiFi login details for eduroam".to_string()),
-                    is_favorite: true,
-                },
-            ]),
+            db: Mutex::new(conn),
+            encryption_key: Mutex::new(None),
+        }
+    }
+
+    pub fn is_unlocked(&self) -> bool {
+        if let Ok(key_guard) = self.encryption_key.lock() {
+            key_guard.is_some()
+        } else {
+            false
         }
     }
 }
