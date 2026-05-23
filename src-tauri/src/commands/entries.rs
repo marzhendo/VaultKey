@@ -1,14 +1,11 @@
 use crate::state::AppState;
 use tauri::State;
-use std::sync::Mutex;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct VaultEntry {
-    pub id: Option<i64>,
+    pub id: i64,
     pub category: String,
     pub title: String,
-    pub ciphertext: Vec<u8>,
-    pub nonce: Vec<u8>,
     pub is_favorite: bool,
     pub username: Option<String>,
 }
@@ -25,22 +22,52 @@ pub struct VaultEntryDetail {
     pub is_favorite: bool,
 }
 
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct VaultPayload {
+    pub username: Option<String>,
+    pub password: Option<String>,
+    pub url: Option<String>,
+    pub notes: Option<String>,
+}
+
 #[tauri::command]
 pub fn get_entries(state: State<'_, AppState>) -> Result<Vec<VaultEntry>, String> {
-    if let Ok(db) = state.db.lock() {
-        let entries = db.iter().map(|item| VaultEntry {
-            id: Some(item.id),
-            category: item.category.clone(),
-            title: item.title.clone(),
-            ciphertext: Vec::new(),
-            nonce: Vec::new(),
-            is_favorite: item.is_favorite,
-            username: item.username.clone(),
-        }).collect();
-        Ok(entries)
-    } else {
-        Err("Failed to lock database".to_string())
+    let key_guard = state.encryption_key.lock().map_err(|e| format!("Lock error: {}", e))?;
+    let ek = key_guard.as_ref().ok_or("Vault is locked".to_string())?;
+
+    let db = state.db.lock().map_err(|e| format!("Database lock error: {}", e))?;
+    let mut stmt = db.prepare("SELECT id, category, title, ciphertext, nonce, is_favorite FROM vault_entries")
+        .map_err(|e| format!("Database prepare failed: {}", e))?;
+
+    let rows = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, i64>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, Vec<u8>>(3)?,
+            row.get::<_, Vec<u8>>(4)?,
+            row.get::<_, i64>(5)? != 0,
+        ))
+    }).map_err(|e| format!("Query failed: {}", e))?;
+
+    let mut entries = Vec::new();
+    for row_res in rows {
+        let (id, category, title, ciphertext, nonce, is_favorite) = row_res.map_err(|e| e.to_string())?;
+        
+        let decrypted_bytes = crate::crypto::cipher::decrypt(&ek.0, &ciphertext, &nonce)?;
+        let payload: VaultPayload = serde_json::from_slice(&decrypted_bytes)
+            .map_err(|e| format!("Failed to parse payload: {}", e))?;
+
+        entries.push(VaultEntry {
+            id,
+            category,
+            title,
+            is_favorite,
+            username: payload.username,
+        });
     }
+
+    Ok(entries)
 }
 
 #[tauri::command]
@@ -53,23 +80,28 @@ pub fn add_entry(
     url: Option<String>,
     notes: Option<String>,
 ) -> Result<i64, String> {
-    if let Ok(mut db) = state.db.lock() {
-        let next_id = db.iter().map(|item| item.id).max().unwrap_or(0) + 1;
-        let new_entry = VaultEntryDetail {
-            id: next_id,
-            category,
-            title,
-            username,
-            password,
-            url,
-            notes,
-            is_favorite: false,
-        };
-        db.push(new_entry);
-        Ok(next_id)
-    } else {
-        Err("Failed to lock database".to_string())
-    }
+    let key_guard = state.encryption_key.lock().map_err(|e| format!("Lock error: {}", e))?;
+    let ek = key_guard.as_ref().ok_or("Vault is locked".to_string())?;
+
+    let payload = VaultPayload {
+        username,
+        password,
+        url,
+        notes,
+    };
+    let payload_bytes = serde_json::to_vec(&payload)
+        .map_err(|e| format!("Failed to serialize payload: {}", e))?;
+
+    let (ciphertext, nonce) = crate::crypto::cipher::encrypt(&ek.0, &payload_bytes)?;
+
+    let db = state.db.lock().map_err(|e| format!("Database lock error: {}", e))?;
+    db.execute(
+        "INSERT INTO vault_entries (user_id, category, title, ciphertext, nonce, is_favorite) VALUES (1, ?, ?, ?, ?, 0)",
+        rusqlite::params![category, title, ciphertext, nonce.as_ref()],
+    ).map_err(|e| format!("Failed to insert entry: {}", e))?;
+
+    let id = db.last_insert_rowid();
+    Ok(id)
 }
 
 #[tauri::command]
@@ -83,94 +115,142 @@ pub fn update_entry(
     url: Option<String>,
     notes: Option<String>,
 ) -> Result<(), String> {
-    if let Ok(mut db) = state.db.lock() {
-        if let Some(item) = db.iter_mut().find(|item| item.id == id) {
-            item.category = category;
-            item.title = title;
-            item.username = username;
-            item.password = password;
-            item.url = url;
-            item.notes = notes;
-            Ok(())
-        } else {
-            Err("Entry not found".to_string())
-        }
-    } else {
-        Err("Failed to lock database".to_string())
+    let key_guard = state.encryption_key.lock().map_err(|e| format!("Lock error: {}", e))?;
+    let ek = key_guard.as_ref().ok_or("Vault is locked".to_string())?;
+
+    let payload = VaultPayload {
+        username,
+        password,
+        url,
+        notes,
+    };
+    let payload_bytes = serde_json::to_vec(&payload)
+        .map_err(|e| format!("Failed to serialize payload: {}", e))?;
+
+    let (ciphertext, nonce) = crate::crypto::cipher::encrypt(&ek.0, &payload_bytes)?;
+
+    let db = state.db.lock().map_err(|e| format!("Database lock error: {}", e))?;
+    let rows_affected = db.execute(
+        "UPDATE vault_entries SET category = ?, title = ?, ciphertext = ?, nonce = ?, updated_at = datetime('now') WHERE id = ?",
+        rusqlite::params![category, title, ciphertext, nonce.as_ref(), id],
+    ).map_err(|e| format!("Failed to update entry: {}", e))?;
+
+    if rows_affected == 0 {
+        return Err("Entry not found".to_string());
     }
+
+    Ok(())
 }
 
 #[tauri::command]
 pub fn delete_entry(state: State<'_, AppState>, id: i64) -> Result<(), String> {
-    if let Ok(mut db) = state.db.lock() {
-        let len_before = db.len();
-        db.retain(|item| item.id != id);
-        if db.len() < len_before {
-            Ok(())
-        } else {
-            Err("Entry not found".to_string())
-        }
-    } else {
-        Err("Failed to lock database".to_string())
+    let db = state.db.lock().map_err(|e| format!("Database lock error: {}", e))?;
+    let rows_affected = db.execute("DELETE FROM vault_entries WHERE id = ?", [id])
+        .map_err(|e| format!("Failed to delete entry: {}", e))?;
+
+    if rows_affected == 0 {
+        return Err("Entry not found".to_string());
     }
+
+    Ok(())
 }
 
 #[tauri::command]
 pub fn get_categories(state: State<'_, AppState>) -> Result<Vec<String>, String> {
-    if let Ok(db) = state.db.lock() {
-        let mut categories: Vec<String> = db.iter().map(|item| item.category.clone()).collect();
-        categories.sort();
-        categories.dedup();
-        // Add defaults if they don't exist
-        for default_cat in &["Campus", "Google", "Social Media", "Finance", "Dev Tools", "Default"] {
-            let cat_str = default_cat.to_string();
-            if !categories.contains(&cat_str) {
-                categories.push(cat_str);
-            }
-        }
-        Ok(categories)
-    } else {
-        Err("Failed to lock database".to_string())
+    let db = state.db.lock().map_err(|e| format!("Database lock error: {}", e))?;
+    let mut stmt = db.prepare("SELECT DISTINCT category FROM vault_entries")
+        .map_err(|e| format!("Database prepare failed: {}", e))?;
+
+    let rows = stmt.query_map([], |row| row.get::<_, String>(0))
+        .map_err(|e| format!("Query failed: {}", e))?;
+
+    let mut categories = Vec::new();
+    for row_res in rows {
+        let cat = row_res.map_err(|e| e.to_string())?;
+        categories.push(cat);
     }
+
+    categories.sort();
+    categories.dedup();
+
+    let defaults = ["Campus", "Google", "Social Media", "Finance", "Dev Tools", "Default"];
+    for default_cat in &defaults {
+        let cat_str = default_cat.to_string();
+        if !categories.contains(&cat_str) {
+            categories.push(cat_str);
+        }
+    }
+
+    Ok(categories)
 }
 
 #[tauri::command]
 pub fn toggle_favorite(state: State<'_, AppState>, id: i64) -> Result<(), String> {
-    if let Ok(mut db) = state.db.lock() {
-        if let Some(item) = db.iter_mut().find(|item| item.id == id) {
-            item.is_favorite = !item.is_favorite;
-            Ok(())
-        } else {
-            Err("Entry not found".to_string())
-        }
-    } else {
-        Err("Failed to lock database".to_string())
+    let db = state.db.lock().map_err(|e| format!("Database lock error: {}", e))?;
+    let rows_affected = db.execute(
+        "UPDATE vault_entries SET is_favorite = 1 - is_favorite, updated_at = datetime('now') WHERE id = ?",
+        [id],
+    ).map_err(|e| format!("Failed to toggle favorite: {}", e))?;
+
+    if rows_affected == 0 {
+        return Err("Entry not found".to_string());
     }
+
+    Ok(())
 }
 
 #[tauri::command]
 pub fn get_entry_password(state: State<'_, AppState>, id: i64) -> Result<String, String> {
-    if let Ok(db) = state.db.lock() {
-        if let Some(item) = db.iter().find(|item| item.id == id) {
-            Ok(item.password.clone().unwrap_or_default())
-        } else {
-            Err("Entry not found".to_string())
-        }
-    } else {
-        Err("Failed to lock database".to_string())
-    }
+    let key_guard = state.encryption_key.lock().map_err(|e| format!("Lock error: {}", e))?;
+    let ek = key_guard.as_ref().ok_or("Vault is locked".to_string())?;
+
+    let db = state.db.lock().map_err(|e| format!("Database lock error: {}", e))?;
+    let mut stmt = db.prepare("SELECT ciphertext, nonce FROM vault_entries WHERE id = ?")
+        .map_err(|e| format!("Database prepare failed: {}", e))?;
+
+    let (ciphertext, nonce) = stmt.query_row([id], |row| {
+        Ok((row.get::<_, Vec<u8>>(0)?, row.get::<_, Vec<u8>>(1)?))
+    }).map_err(|_| "Entry not found".to_string())?;
+
+    let decrypted_bytes = crate::crypto::cipher::decrypt(&ek.0, &ciphertext, &nonce)?;
+    let payload: VaultPayload = serde_json::from_slice(&decrypted_bytes)
+        .map_err(|e| format!("Failed to parse payload: {}", e))?;
+
+    Ok(payload.password.unwrap_or_default())
 }
 
 #[tauri::command]
 pub fn get_entry_detail(state: State<'_, AppState>, id: i64) -> Result<VaultEntryDetail, String> {
-    if let Ok(db) = state.db.lock() {
-        if let Some(item) = db.iter().find(|item| item.id == id) {
-            Ok(item.clone())
-        } else {
-            Err("Entry not found".to_string())
-        }
-    } else {
-        Err("Failed to lock database".to_string())
-    }
+    let key_guard = state.encryption_key.lock().map_err(|e| format!("Lock error: {}", e))?;
+    let ek = key_guard.as_ref().ok_or("Vault is locked".to_string())?;
+
+    let db = state.db.lock().map_err(|e| format!("Database lock error: {}", e))?;
+    let mut stmt = db.prepare("SELECT category, title, ciphertext, nonce, is_favorite FROM vault_entries WHERE id = ?")
+        .map_err(|e| format!("Database prepare failed: {}", e))?;
+
+    let (category, title, ciphertext, nonce, is_favorite) = stmt.query_row([id], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, Vec<u8>>(2)?,
+            row.get::<_, Vec<u8>>(3)?,
+            row.get::<_, i64>(4)? != 0,
+        ))
+    }).map_err(|_| "Entry not found".to_string())?;
+
+    let decrypted_bytes = crate::crypto::cipher::decrypt(&ek.0, &ciphertext, &nonce)?;
+    let payload: VaultPayload = serde_json::from_slice(&decrypted_bytes)
+        .map_err(|e| format!("Failed to parse payload: {}", e))?;
+
+    Ok(VaultEntryDetail {
+        id,
+        category,
+        title,
+        username: payload.username,
+        password: payload.password,
+        url: payload.url,
+        notes: payload.notes,
+        is_favorite,
+    })
 }
 
