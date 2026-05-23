@@ -69,91 +69,122 @@ export const PasswordGenerator: React.FC<PasswordGeneratorProps> = ({
   };
 
   const renderContent = () => {
+    const allUnchecked = !uppercase && !lowercase && !numbers && !symbols;
+
     return (
       <div className="generator-container">
-        {error && <div className="setup-error">{error}</div>}
-        <div className="generator-result">
+        {error && <div className="setup-error" style={{ marginBottom: "var(--space-2)" }}>{error}</div>}
+        
+        <div className="generator-option" style={{ marginBottom: "var(--space-4)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "var(--space-1)" }}>
+            <label style={{ fontSize: "13px", fontWeight: 500, color: "var(--color-text-primary)" }}>
+              Length: {length}
+            </label>
+          </div>
+          <input
+            type="range"
+            min={8}
+            max={64}
+            value={length}
+            onChange={(e) => setLength(parseInt(e.target.value))}
+            className="range-input"
+          />
+        </div>
+        
+        <div className="checkbox-options" style={{ marginBottom: "var(--space-4)" }}>
+          <label className="checkbox-option">
+            <input
+              type="checkbox"
+              checked={uppercase}
+              onChange={(e) => setUppercase(e.target.checked)}
+            />
+            <span>Uppercase (A–Z)</span>
+          </label>
+          <label className="checkbox-option">
+            <input
+              type="checkbox"
+              checked={lowercase}
+              onChange={(e) => setLowercase(e.target.checked)}
+            />
+            <span>Lowercase (a–z)</span>
+          </label>
+          <label className="checkbox-option">
+            <input
+              type="checkbox"
+              checked={numbers}
+              onChange={(e) => setNumbers(e.target.checked)}
+            />
+            <span>Numbers (0–9)</span>
+          </label>
+          <label className="checkbox-option">
+            <input
+              type="checkbox"
+              checked={symbols}
+              onChange={(e) => setSymbols(e.target.checked)}
+            />
+            <span>Symbols (!@#$...)</span>
+          </label>
+        </div>
+
+        <div className="generator-result" style={{ marginBottom: "var(--space-4)" }}>
           <input
             type="text"
             readOnly
             value={generatedPassword}
             placeholder="Generating password..."
             className="input-field generator-result-input"
+            style={{
+              fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+              fontSize: "13px",
+              backgroundColor: "var(--color-bg-secondary)",
+              width: "100%"
+            }}
           />
-          {generatedPassword && (
-            <button
-              type="button"
-              className="copy-button"
-              onClick={handleCopy}
-              title="Copy to clipboard"
-            >
-              {copied ? <Check size={16} className="copied" /> : <Copy size={16} />}
-            </button>
-          )}
         </div>
-        
-        <div className="generator-options">
-          <div className="generator-option">
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "var(--space-1)" }}>
-              <label>Length: {length}</label>
-            </div>
-            <input
-              type="range"
-              min={8}
-              max={64}
-              value={length}
-              onChange={(e) => setLength(parseInt(e.target.value))}
-              className="range-input"
-            />
-          </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)" }}>
+          <button 
+            type="button" 
+            className="icon-btn" 
+            onClick={handleGenerate} 
+            disabled={allUnchecked}
+            title="Regenerate"
+            style={{ 
+              width: "36px", 
+              height: "36px", 
+              backgroundColor: "var(--color-bg-secondary)", 
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-md)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}
+          >
+            <RefreshCw size={16} />
+          </button>
           
-          <div className="checkbox-options">
-            <label className="checkbox-option">
-              <input
-                type="checkbox"
-                checked={uppercase}
-                onChange={(e) => setUppercase(e.target.checked)}
-              />
-              <span>Uppercase (A-Z)</span>
-            </label>
-            <label className="checkbox-option">
-              <input
-                type="checkbox"
-                checked={lowercase}
-                onChange={(e) => setLowercase(e.target.checked)}
-              />
-              <span>Lowercase (a-z)</span>
-            </label>
-            <label className="checkbox-option">
-              <input
-                type="checkbox"
-                checked={numbers}
-                onChange={(e) => setNumbers(e.target.checked)}
-              />
-              <span>Numbers (0-9)</span>
-            </label>
-            <label className="checkbox-option">
-              <input
-                type="checkbox"
-                checked={symbols}
-                onChange={(e) => setSymbols(e.target.checked)}
-              />
-              <span>Symbols (!@#$)</span>
-            </label>
-          </div>
-        </div>
-        
-        {mode === "inline" && (
-          <div className="inline-generator-actions">
-            <Button type="button" variant="ghost" onClick={handleGenerate} style={{ gap: "4px" }}>
-              <RefreshCw size={12} />
-              <span>Regenerate</span>
-            </Button>
-            <Button type="button" variant="primary" onClick={handleSelect} disabled={!generatedPassword}>
+          {mode === "inline" ? (
+            <Button 
+              type="button" 
+              variant="primary" 
+              onClick={handleSelect} 
+              disabled={allUnchecked || !generatedPassword}
+            >
               Use Password
             </Button>
-          </div>
-        )}
+          ) : (
+            <Button 
+              type="button" 
+              variant="primary" 
+              onClick={handleCopy} 
+              disabled={allUnchecked || !generatedPassword}
+              style={{ gap: "var(--space-2)" }}
+            >
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+              <span>{copied ? "Copied" : "Copy Password"}</span>
+            </Button>
+          )}
+        </div>
       </div>
     );
   };
@@ -167,20 +198,8 @@ export const PasswordGenerator: React.FC<PasswordGeneratorProps> = ({
       isOpen={isGeneratorOpen}
       onClose={() => setGeneratorOpen(false)}
       title="Generate Password"
-      footer={
-        <div className="entry-modal-footer">
-          <Button variant="ghost" onClick={() => setGeneratorOpen(false)}>
-            Close
-          </Button>
-          <Button variant="primary" onClick={handleGenerate} style={{ gap: "var(--space-2)" }}>
-            <RefreshCw size={14} />
-            <span>Regenerate</span>
-          </Button>
-        </div>
-      }
     >
       {renderContent()}
     </Modal>
   );
 };
-

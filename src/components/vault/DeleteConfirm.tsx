@@ -19,7 +19,7 @@ export const DeleteConfirm: React.FC<DeleteConfirmProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleConfirmDelete = async () => {
+  const handleDelete = async () => {
     if (!entryToDelete || !entryToDelete.id) return;
     setLoading(true);
     setError("");
@@ -38,13 +38,13 @@ export const DeleteConfirm: React.FC<DeleteConfirmProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Delete Entry?"
+      title="Delete Entry"
       footer={
         <div className="entry-modal-footer">
           <Button variant="ghost" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button variant="danger" onClick={handleConfirmDelete} disabled={loading}>
+          <Button variant="danger" onClick={handleDelete} disabled={loading}>
             {loading ? "Deleting..." : "Delete"}
           </Button>
         </div>
@@ -55,27 +55,26 @@ export const DeleteConfirm: React.FC<DeleteConfirmProps> = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          width: "48px",
-          height: "48px",
+          width: "40px",
+          height: "40px",
           borderRadius: "50%",
-          backgroundColor: "rgba(226, 75, 74, 0.1)",
+          backgroundColor: "rgba(226, 75, 74, 0.15)",
           color: "var(--color-danger)",
           marginBottom: "var(--space-4)"
         }}>
-          <Trash2 size={24} />
+          <Trash2 size={20} />
         </div>
         
         {error && <div className="setup-error" style={{ marginBottom: "var(--space-3)" }}>{error}</div>}
         
-        <p style={{ fontSize: "13px", color: "var(--color-text-primary)", fontWeight: 500, marginBottom: "var(--space-2)" }}>
-          Permanently delete "{entryToDelete?.title}"?
-        </p>
+        <h4 style={{ fontSize: "16px", fontWeight: 500, color: "var(--color-text-primary)", marginBottom: "var(--space-2)" }}>
+          Delete entry?
+        </h4>
         
-        <p style={{ fontSize: "11px", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>
-          This will permanently delete this entry and all its credentials. This action cannot be undone.
+        <p style={{ fontSize: "13px", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>
+          This will permanently delete {entryToDelete?.title || "this entry"}. This action cannot be undone.
         </p>
       </div>
     </Modal>
   );
 };
-

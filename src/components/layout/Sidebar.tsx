@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useVaultStore } from "../../store/vaultStore";
 import { invoke } from "@tauri-apps/api/tauri";
 import { 
-  Key, Star, School, Globe, Users, 
+  Key, Star, GraduationCap, Globe, Users, 
   CreditCard, Terminal, Settings, KeyRound, Lock 
 } from "lucide-react";
 
@@ -42,7 +42,7 @@ export const Sidebar: React.FC = () => {
 
   const getCategoryIcon = (catName: string) => {
     switch (catName) {
-      case "Campus": return <School size={16} />;
+      case "Campus": return <GraduationCap size={16} />;
       case "Google": return <Globe size={16} />;
       case "Social Media": return <Users size={16} />;
       case "Finance": return <CreditCard size={16} />;

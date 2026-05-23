@@ -7,6 +7,7 @@ export const StatusBar: React.FC = () => {
   const { timeRemaining } = useAutoLock();
   const isLocked = useVaultStore((state) => state.isLocked);
   const lockWarning = useVaultStore((state) => state.lockWarning);
+  const statusMessage = useVaultStore((state) => state.statusMessage);
 
   const minutes = Math.floor(timeRemaining / 60);
   const seconds = timeRemaining % 60;
@@ -16,7 +17,7 @@ export const StatusBar: React.FC = () => {
     <footer className="status-bar">
       <div className="status-bar-info">
         <span className={`status-bar-dot ${isLocked ? "locked" : "unlocked"}`}></span>
-        <span>{isLocked ? "Vault locked" : "Vault unlocked"}</span>
+        <span>{statusMessage || (isLocked ? "Vault locked" : "Vault unlocked")}</span>
       </div>
       
       {!isLocked && (
