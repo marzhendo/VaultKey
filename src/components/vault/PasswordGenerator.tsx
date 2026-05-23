@@ -1,90 +1,102 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { useClipboard } from "../../hooks/useClipboard";
-import { Copy } from "lucide-react";
+import { useVaultStore } from "../../store/vaultStore";
+import { Copy, RefreshCw, Check } from "lucide-react";
+import { invoke } from "@tauri-apps/api/tauri";
 
 interface PasswordGeneratorProps {
-  isOpen: boolean;
-  onClose: () => void;
+  mode?: "standalone" | "inline";
+  onSelect?: (password: string) => void;
 }
 
 export const PasswordGenerator: React.FC<PasswordGeneratorProps> = ({
-  isOpen,
-  onClose,
+  mode = "standalone",
+  onSelect,
 }) => {
-  const [length, setLength] = useState(16);
+  const isGeneratorOpen = useVaultStore((state) => state.isGeneratorOpen);
+  const setGeneratorOpen = useVaultStore((state) => state.setGeneratorOpen);
+
+  const [length, setLength] = useState(20);
   const [uppercase, setUppercase] = useState(true);
   const [lowercase, setLowercase] = useState(true);
   const [numbers, setNumbers] = useState(true);
   const [symbols, setSymbols] = useState(true);
   const [generatedPassword, setGeneratedPassword] = useState("");
-  const { copy } = useClipboard();
+  const [error, setError] = useState("");
+  
+  const { copy, copied } = useClipboard();
 
-  const handleGenerate = () => {
-    const chars = {
-      upper: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-      lower: "abcdefghijklmnopqrstuvwxyz",
-      numbers: "0123456789",
-      symbols: "!@#$%^&*()_+-=[]{}|;:,.<>?",
-    };
-
-    let allowed = "";
-    if (uppercase) allowed += chars.upper;
-    if (lowercase) allowed += chars.lower;
-    if (numbers) allowed += chars.numbers;
-    if (symbols) allowed += chars.symbols;
-
-    if (!allowed) {
+  const handleGenerate = useCallback(async () => {
+    if (!uppercase && !lowercase && !numbers && !symbols) {
       setGeneratedPassword("");
+      setError("Please select at least one character set.");
       return;
     }
-
-    let password = "";
-    for (let i = 0; i < length; i++) {
-      password += allowed.charAt(Math.floor(Math.random() * allowed.length));
+    setError("");
+    try {
+      const pass = await invoke<string>("generate_password", {
+        length,
+        uppercase,
+        lowercase,
+        numbers,
+        symbols,
+      });
+      setGeneratedPassword(pass);
+    } catch (err: any) {
+      setError(err?.toString() || "Failed to generate password.");
     }
-    setGeneratedPassword(password);
+  }, [length, uppercase, lowercase, numbers, symbols]);
+
+  // Generate on mount and on any control change
+  useEffect(() => {
+    if (mode === "inline" || isGeneratorOpen) {
+      handleGenerate();
+    }
+  }, [handleGenerate, mode, isGeneratorOpen]);
+
+  const handleCopy = async () => {
+    if (generatedPassword) {
+      await copy(generatedPassword);
+    }
   };
 
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Generate Password"
-      footer={
-        <div className="entry-modal-footer">
-          <Button variant="ghost" onClick={onClose}>
-            Close
-          </Button>
-          <Button variant="primary" onClick={handleGenerate}>
-            Generate
-          </Button>
-        </div>
-      }
-    >
+  const handleSelect = () => {
+    if (generatedPassword && onSelect) {
+      onSelect(generatedPassword);
+    }
+  };
+
+  const renderContent = () => {
+    return (
       <div className="generator-container">
+        {error && <div className="setup-error">{error}</div>}
         <div className="generator-result">
           <input
             type="text"
             readOnly
             value={generatedPassword}
-            placeholder="Click Generate to start"
+            placeholder="Generating password..."
             className="input-field generator-result-input"
           />
           {generatedPassword && (
             <button
+              type="button"
               className="copy-button"
-              onClick={() => copy(generatedPassword)}
-              title="Copy"
+              onClick={handleCopy}
+              title="Copy to clipboard"
             >
-              <Copy size={16} />
+              {copied ? <Check size={16} className="copied" /> : <Copy size={16} />}
             </button>
           )}
         </div>
+        
         <div className="generator-options">
           <div className="generator-option">
-            <label>Length: {length}</label>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "var(--space-1)" }}>
+              <label>Length: {length}</label>
+            </div>
             <input
               type="range"
               min={8}
@@ -94,6 +106,7 @@ export const PasswordGenerator: React.FC<PasswordGeneratorProps> = ({
               className="range-input"
             />
           </div>
+          
           <div className="checkbox-options">
             <label className="checkbox-option">
               <input
@@ -125,11 +138,49 @@ export const PasswordGenerator: React.FC<PasswordGeneratorProps> = ({
                 checked={symbols}
                 onChange={(e) => setSymbols(e.target.checked)}
               />
-              <span>Special Symbols (!@#$)</span>
+              <span>Symbols (!@#$)</span>
             </label>
           </div>
         </div>
+        
+        {mode === "inline" && (
+          <div className="inline-generator-actions">
+            <Button type="button" variant="ghost" onClick={handleGenerate} style={{ gap: "4px" }}>
+              <RefreshCw size={12} />
+              <span>Regenerate</span>
+            </Button>
+            <Button type="button" variant="primary" onClick={handleSelect} disabled={!generatedPassword}>
+              Use Password
+            </Button>
+          </div>
+        )}
       </div>
+    );
+  };
+
+  if (mode === "inline") {
+    return renderContent();
+  }
+
+  return (
+    <Modal
+      isOpen={isGeneratorOpen}
+      onClose={() => setGeneratorOpen(false)}
+      title="Generate Password"
+      footer={
+        <div className="entry-modal-footer">
+          <Button variant="ghost" onClick={() => setGeneratorOpen(false)}>
+            Close
+          </Button>
+          <Button variant="primary" onClick={handleGenerate} style={{ gap: "var(--space-2)" }}>
+            <RefreshCw size={14} />
+            <span>Regenerate</span>
+          </Button>
+        </div>
+      }
+    >
+      {renderContent()}
     </Modal>
   );
 };
+
