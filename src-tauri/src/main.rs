@@ -15,6 +15,7 @@ fn main() {
     tauri::Builder::default()
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
+            commands::auth::get_vault_status,
             commands::auth::setup_vault,
             commands::auth::unlock_vault,
             commands::auth::lock_vault,
@@ -22,6 +23,10 @@ fn main() {
             commands::entries::add_entry,
             commands::entries::update_entry,
             commands::entries::delete_entry,
+            commands::entries::get_categories,
+            commands::entries::toggle_favorite,
+            commands::entries::get_entry_password,
+            commands::entries::get_entry_detail,
             commands::generator::generate_password,
         ])
         .run(tauri::generate_context!())

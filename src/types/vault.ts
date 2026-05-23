@@ -2,12 +2,12 @@ export interface VaultEntry {
   id?: number;
   category: string;
   title: string;
-  ciphertext: number[];
-  nonce: number[];
-  isFavorite: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+  is_favorite: boolean;
+  username?: string;
+  created_at?: string;
+  updated_at?: string;
 }
+
 
 export interface DecryptedPayload {
   username?: string;
@@ -15,3 +15,4 @@ export interface DecryptedPayload {
   url?: string;
   notes?: string;
 }
+
