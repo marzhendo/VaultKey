@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React from "react";
 import { VaultEntry } from "../../types/vault";
 import { 
-  School, Globe, Users, CreditCard, Terminal, Key,
+  GraduationCap, Globe, Users, CreditCard, Terminal, Key,
   Copy, Edit, Trash2, Star, Check, Lock
 } from "lucide-react";
 import { useClipboard } from "../../hooks/useClipboard";
@@ -19,35 +19,26 @@ export const EntryCard: React.FC<EntryCardProps> = ({
   onEdit,
   onDelete,
 }) => {
-  const { copy } = useClipboard();
+  const { copy: copyUsername, copied: copiedUser } = useClipboard();
+  const { copy: copyPassword, copied: copiedPass } = useClipboard();
   const refreshEntries = useVaultStore((state) => state.refreshEntries);
   const selectedEntryId = useVaultStore((state) => state.selectedEntryId);
   const setSelectedEntryId = useVaultStore((state) => state.setSelectedEntryId);
-
-  const [copiedUser, setCopiedUser] = useState(false);
-  const [copiedPass, setCopiedPass] = useState(false);
 
   const isSelected = selectedEntryId === entry.id;
 
   const handleCopyUsername = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!entry.username) return;
-    const success = await copy(entry.username);
-    if (success) {
-      setCopiedUser(true);
-      setTimeout(() => setCopiedUser(false), 1500);
-    }
+    await copyUsername(entry.username);
   };
 
   const handleCopyPassword = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!entry.id) return;
     try {
       const password = await invoke<string>("get_entry_password", { id: entry.id });
-      const success = await copy(password);
-      if (success) {
-        setCopiedPass(true);
-        setTimeout(() => setCopiedPass(false), 1500);
-      }
+      await copyPassword(password);
     } catch (err) {
       console.error("Failed to copy password:", err);
     }
@@ -55,6 +46,7 @@ export const EntryCard: React.FC<EntryCardProps> = ({
 
   const handleToggleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!entry.id) return;
     try {
       await invoke("toggle_favorite", { id: entry.id });
       await refreshEntries();
@@ -85,7 +77,7 @@ export const EntryCard: React.FC<EntryCardProps> = ({
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case "Campus": return <School size={16} />;
+      case "Campus": return <GraduationCap size={16} />;
       case "Google": return <Globe size={16} />;
       case "Social Media": return <Users size={16} />;
       case "Finance": return <CreditCard size={16} />;
@@ -130,7 +122,7 @@ export const EntryCard: React.FC<EntryCardProps> = ({
             onClick={handleCopyUsername}
             title="Copy Username"
           >
-            {copiedUser ? <Check size={14} className="copied" /> : <Copy size={14} />}
+            {copiedUser ? <Check size={14} style={{ color: "var(--color-success)" }} /> : <Copy size={14} />}
           </button>
         )}
         <button
@@ -138,7 +130,7 @@ export const EntryCard: React.FC<EntryCardProps> = ({
           onClick={handleCopyPassword}
           title="Copy Password"
         >
-          {copiedPass ? <Check size={14} className="copied" /> : <Lock size={14} />}
+          {copiedPass ? <Check size={14} style={{ color: "var(--color-success)" }} /> : <Lock size={14} />}
         </button>
         <button 
           className="entry-action-btn" 
@@ -158,4 +150,3 @@ export const EntryCard: React.FC<EntryCardProps> = ({
     </div>
   );
 };
-

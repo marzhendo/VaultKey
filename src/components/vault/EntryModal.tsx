@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Modal } from "../ui/Modal";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
-
 import { useVaultStore } from "../../store/vaultStore";
 import { invoke } from "@tauri-apps/api/tauri";
 import { Eye, EyeOff, Sparkles } from "lucide-react";
@@ -21,7 +20,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
   const refreshEntries = useVaultStore((state) => state.refreshEntries);
 
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("Default");
+  const [category, setCategory] = useState("Campus");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [url, setUrl] = useState("");
@@ -32,29 +31,33 @@ export const EntryModal: React.FC<EntryModalProps> = ({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const isEditMode = !!entryToEdit;
+
   useEffect(() => {
     if (!isOpen) return;
 
     const loadDetails = async () => {
-      if (entryToEdit && entryToEdit.id) {
+      if (isEditMode && entryToEdit.id) {
         setLoading(true);
         setError("");
         try {
           const detail = await invoke<any>("get_entry_detail", { id: entryToEdit.id });
           setTitle(detail.title || "");
-          setCategory(detail.category || "Default");
+          setCategory(detail.category || "Campus");
           setUsername(detail.username || "");
-          setPassword(detail.password || "");
+          // Set password to the placeholder string to hide the real password from memory
+          setPassword("••••••••");
           setUrl(detail.url || "");
           setNotes(detail.notes || "");
         } catch (err: any) {
-          setError(err?.toString() || "Failed to load entry details.");
+          setError("Failed to load details. Please unlock your vault or try again.");
+          console.error(err);
         } finally {
           setLoading(false);
         }
       } else {
         setTitle("");
-        setCategory("Default");
+        setCategory("Campus");
         setUsername("");
         setPassword("");
         setUrl("");
@@ -67,11 +70,11 @@ export const EntryModal: React.FC<EntryModalProps> = ({
     };
 
     loadDetails();
-  }, [entryToEdit, isOpen]);
+  }, [entryToEdit, isOpen, isEditMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title) {
+    if (!title.trim()) {
       setError("Title is required.");
       return;
     }
@@ -80,30 +83,46 @@ export const EntryModal: React.FC<EntryModalProps> = ({
     setError("");
 
     try {
-      if (entryToEdit && entryToEdit.id) {
+      if (isEditMode && entryToEdit.id) {
+        // Secure Password Saving Logic:
+        // If the password field is left as the placeholder, fetch the existing password at the exact save moment
+        let finalPassword = password;
+        if (finalPassword === "••••••••" || !finalPassword) {
+          finalPassword = await invoke<string>("get_entry_password", { id: entryToEdit.id });
+        }
+
         await invoke("update_entry", {
           id: entryToEdit.id,
           category,
           title,
-          username: username || null,
-          password: password || null,
-          url: url || null,
-          notes: notes || null,
+          username: username.trim() || null,
+          password: finalPassword || null,
+          url: url.trim() || null,
+          notes: notes.trim() || null,
         });
       } else {
         await invoke("add_entry", {
           category,
           title,
-          username: username || null,
+          username: username.trim() || null,
           password: password || null,
-          url: url || null,
-          notes: notes || null,
+          url: url.trim() || null,
+          notes: notes.trim() || null,
         });
       }
       await refreshEntries();
       onClose();
     } catch (err: any) {
-      setError(err?.toString() || "Failed to save entry.");
+      // Map raw Rust errors to friendly messages
+      const errMsg = err?.toString() || "";
+      if (errMsg.includes("Vault is locked")) {
+        setError("Your vault session has expired. Please unlock the vault again.");
+      } else if (errMsg.includes("Database")) {
+        setError("A database error occurred. Please try again.");
+      } else {
+        setError("Failed to save the entry. Please try again.");
+      }
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -113,19 +132,19 @@ export const EntryModal: React.FC<EntryModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={entryToEdit ? "Edit Vault Entry" : "Add New Vault Entry"}
+      title={isEditMode ? "Edit Entry" : "Add Entry"}
       footer={
         <div className="entry-modal-footer">
           <Button variant="ghost" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSubmit} disabled={loading || !title}>
+          <Button variant="primary" onClick={handleSubmit} disabled={loading || !title.trim()}>
             {loading ? "Saving..." : "Save Entry"}
           </Button>
         </div>
       }
     >
-      {loading && !password ? (
+      {loading && password === "••••••••" ? (
         <div style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-secondary)" }}>
           Loading entry details...
         </div>
@@ -145,6 +164,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
               <option value="Social Media">Social Media</option>
               <option value="Finance">Finance</option>
               <option value="Dev Tools">Dev Tools</option>
+              <option value="Other">Other</option>
               <option value="Default">Default</option>
             </select>
           </div>
@@ -153,7 +173,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             label="Title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Google Account"
+            placeholder="e.g. Gmail Work Account"
             required
           />
 
@@ -161,7 +181,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             label="Username / Email"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Username or email address..."
+            placeholder="username or email"
           />
 
           <div className="password-input-wrapper">
@@ -209,7 +229,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             label="Website URL"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://example.com"
+            placeholder="https://"
           />
 
           <div className="form-group">
@@ -219,7 +239,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
               onChange={(e) => setNotes(e.target.value)}
               className="input-field textarea-field"
               rows={3}
-              placeholder="Add extra notes here..."
+              placeholder="Additional notes..."
             />
           </div>
         </form>
@@ -227,4 +247,3 @@ export const EntryModal: React.FC<EntryModalProps> = ({
     </Modal>
   );
 };
-

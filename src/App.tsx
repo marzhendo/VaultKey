@@ -60,12 +60,17 @@ const ShortcutManager: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const isLocked = useVaultStore((state) => state.isLocked);
   const setLocked = useVaultStore((state) => state.setLocked);
   const setSearchQuery = useVaultStore((state) => state.setSearchQuery);
+  const setEntryModalOpen = useVaultStore((state) => state.setEntryModalOpen);
+  const setGeneratorOpen = useVaultStore((state) => state.setGeneratorOpen);
+  const setDeleteModalOpen = useVaultStore((state) => state.setDeleteModalOpen);
+  const setEntryToEdit = useVaultStore((state) => state.setEntryToEdit);
+  const setEntryToDelete = useVaultStore((state) => state.setEntryToDelete);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMeta = e.metaKey || e.ctrlKey;
 
-      // Ctrl/Cmd + L -> Lock vault
+      // Lock vault shortcut (Ctrl/Cmd + L)
       if (isMeta && e.key.toLowerCase() === "l") {
         e.preventDefault();
         if (!isLocked) {
@@ -74,25 +79,49 @@ const ShortcutManager: React.FC<{ children: React.ReactNode }> = ({ children }) 
         }
       }
 
-      // Ctrl/Cmd + F -> Focus search
-      if (isMeta && e.key.toLowerCase() === "f") {
+      // Add new entry shortcut (Ctrl/Cmd + N)
+      if (isMeta && e.key.toLowerCase() === "n") {
         e.preventDefault();
-        const searchInput = document.querySelector(".topbar-search") as HTMLInputElement;
-        if (searchInput) {
-          searchInput.focus();
-          searchInput.select();
+        if (!isLocked) {
+          setEntryToEdit(null);
+          setEntryModalOpen(true);
         }
       }
 
-      // Escape -> Clear search / close modal
+      // Open password generator shortcut (Ctrl/Cmd + G)
+      if (isMeta && e.key.toLowerCase() === "g") {
+        e.preventDefault();
+        if (!isLocked) {
+          setGeneratorOpen(true);
+        }
+      }
+
+      // Focus search input (Ctrl/Cmd + F)
+      if (isMeta && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        if (!isLocked) {
+          const searchInput = document.querySelector(".topbar-search") as HTMLInputElement;
+          if (searchInput) {
+            searchInput.focus();
+            searchInput.select();
+          }
+        }
+      }
+
+      // Escape -> Clear search / close any open modal
       if (e.key === "Escape") {
         setSearchQuery("");
+        setEntryModalOpen(false);
+        setGeneratorOpen(false);
+        setDeleteModalOpen(false);
+        setEntryToEdit(null);
+        setEntryToDelete(null);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isLocked, setLocked, setSearchQuery]);
+  }, [isLocked, setLocked, setSearchQuery, setEntryModalOpen, setGeneratorOpen, setDeleteModalOpen, setEntryToEdit, setEntryToDelete]);
 
   return <>{children}</>;
 };

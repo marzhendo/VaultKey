@@ -30,6 +30,8 @@ pub fn setup_vault(state: State<'_, AppState>, password: String) -> Result<(), S
     let exists: bool = stmt.query_row([], |row| row.get(0))
         .map_err(|e| format!("Database query failed: {}", e))?;
 
+    drop(stmt);
+
     if exists {
         return Err("Vault has already been set up".to_string());
     }

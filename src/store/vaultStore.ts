@@ -10,6 +10,7 @@ interface VaultStore {
   selectedEntryId: number | null;
   entries: VaultEntry[];
   lockWarning: boolean;
+  statusMessage: string | null;
   
   // UI Modal States
   isGeneratorOpen: boolean;
@@ -25,6 +26,7 @@ interface VaultStore {
   setSearchQuery: (query: string) => void;
   setSelectedEntryId: (id: number | null) => void;
   setLockWarning: (warning: boolean) => void;
+  setStatusMessage: (msg: string | null) => void;
   
   // UI Modal Setters
   setGeneratorOpen: (isOpen: boolean) => void;
@@ -44,6 +46,7 @@ export const useVaultStore = create<VaultStore>((set) => ({
   selectedEntryId: null,
   entries: [],
   lockWarning: false,
+  statusMessage: null,
   
   isGeneratorOpen: false,
   isEntryModalOpen: false,
@@ -58,6 +61,7 @@ export const useVaultStore = create<VaultStore>((set) => ({
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSelectedEntryId: (id) => set({ selectedEntryId: id }),
   setLockWarning: (warning) => set({ lockWarning: warning }),
+  setStatusMessage: (statusMessage) => set({ statusMessage }),
   
   setGeneratorOpen: (isGeneratorOpen) => set({ isGeneratorOpen }),
   setEntryModalOpen: (isEntryModalOpen) => set({ isEntryModalOpen }),
