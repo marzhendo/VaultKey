@@ -1,7 +1,9 @@
 import React from "react";
 import { useVaultStore } from "../../store/vaultStore";
 import { EntryCard } from "./EntryCard";
+import { EmptyState } from "../ui/EmptyState";
 import { VaultEntry } from "../../types/vault";
+import { FolderOpen, Search, Star, Inbox } from "lucide-react";
 
 interface EntryListProps {
   onEditEntry: (entry: VaultEntry) => void;
@@ -15,6 +17,27 @@ export const EntryList: React.FC<EntryListProps> = ({
   const entries = useVaultStore((state) => state.entries);
   const activeCategory = useVaultStore((state) => state.activeCategory);
   const searchQuery = useVaultStore((state) => state.searchQuery);
+  const isLoading = useVaultStore((state) => state.isLoading);
+  const setEntryModalOpen = useVaultStore((state) => state.setEntryModalOpen);
+  const setEntryToEdit = useVaultStore((state) => state.setEntryToEdit);
+
+  // Skeleton Loader for initial fetch
+  if (isLoading && entries.length === 0) {
+    return (
+      <div className="entry-list skeleton-list">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="entry-card skeleton-card">
+            <div className="skeleton-icon skeleton-pulse"></div>
+            <div className="skeleton-info">
+              <div className="skeleton-title skeleton-pulse"></div>
+              <div className="skeleton-username skeleton-pulse"></div>
+            </div>
+            <div className="skeleton-meta skeleton-pulse"></div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   // Apply filters
   const filteredEntries = entries.filter((entry) => {
@@ -25,10 +48,14 @@ export const EntryList: React.FC<EntryListProps> = ({
       if (entry.category !== activeCategory) return false;
     }
 
-    // 2. Search Filter (title.toLowerCase().includes(query))
+    // 2. Search Filter
     if (searchQuery.trim()) {
       const query = searchQuery.trim().toLowerCase();
-      if (!entry.title.toLowerCase().includes(query)) {
+      if (
+        !entry.title.toLowerCase().includes(query) &&
+        !(entry.username && entry.username.toLowerCase().includes(query)) &&
+        !(entry.category && entry.category.toLowerCase().includes(query))
+      ) {
         return false;
       }
     }
@@ -36,23 +63,61 @@ export const EntryList: React.FC<EntryListProps> = ({
     return true;
   });
 
-  // Calculate dynamic empty state message exactly matching specifications
+  const handleAddFirstItem = () => {
+    setEntryToEdit(null);
+    setEntryModalOpen(true);
+  };
+
+  // Calculate dynamic empty state context exactly matching UX specifications
   if (filteredEntries.length === 0) {
-    let emptyMessage = "No entries match your filters.";
     if (entries.length === 0) {
-      emptyMessage = "Your vault is empty. Add your first entry with + Add item.";
-    } else if (searchQuery.trim()) {
-      emptyMessage = `No entries match "${searchQuery}".`;
-    } else if (activeCategory === "Favorites") {
-      emptyMessage = "Star an entry to save it here.";
-    } else if (activeCategory !== null) {
-      emptyMessage = "No entries in this category yet.";
+      return (
+        <EmptyState
+          icon={FolderOpen}
+          title="Your vault is empty"
+          description="Secure your digital life! Store, generate, and autofill credentials in a completely local, offline space."
+          actionLabel="Add your first item"
+          onAction={handleAddFirstItem}
+        />
+      );
+    }
+    
+    if (searchQuery.trim()) {
+      return (
+        <EmptyState
+          icon={Search}
+          title="No search results"
+          description={`We couldn't find any entries matching "${searchQuery}". Please refine your keywords or search terms.`}
+        />
+      );
+    }
+    
+    if (activeCategory === "Favorites") {
+      return (
+        <EmptyState
+          icon={Star}
+          title="No favorites saved"
+          description="Star your most important, high-frequency passwords to locate them in this tab in a single click."
+        />
+      );
+    }
+    
+    if (activeCategory !== null) {
+      return (
+        <EmptyState
+          icon={Inbox}
+          title="No entries here"
+          description={`Add credentials to the "${activeCategory}" category by clicking the Add Item button in the upper right corner.`}
+        />
+      );
     }
 
     return (
-      <div className="entry-list-empty">
-        <p>{emptyMessage}</p>
-      </div>
+      <EmptyState
+        icon={Inbox}
+        title="No entries match"
+        description="No entries match the currently active navigation filter."
+      />
     );
   }
 
@@ -61,23 +126,9 @@ export const EntryList: React.FC<EntryListProps> = ({
 
   return (
     <div className="entry-list">
-      {categories.map((category, index) => (
-        <section 
-          key={category} 
-          className="entry-category-section"
-          style={{ marginTop: index > 0 ? "var(--space-4)" : "0" }}
-        >
-          <h4 
-            className="entry-category-header"
-            style={{
-              fontSize: "11px",
-              fontWeight: 500,
-              color: "var(--color-text-tertiary)",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              marginBottom: "var(--space-2)"
-            }}
-          >
+      {categories.map((category) => (
+        <section key={category} className="entry-category-section">
+          <h4 className="entry-category-header">
             {category}
           </h4>
           <div className="entry-category-items">

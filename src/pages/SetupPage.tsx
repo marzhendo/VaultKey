@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Input } from "../components/ui/Input";
 import { Button } from "../components/ui/Button";
 import { useVaultStore } from "../store/vaultStore";
+import { toast } from "../store/toastStore";
 import { invoke } from "@tauri-apps/api/tauri";
 import { ShieldAlert, CheckCircle2, Lock, Eye, EyeOff } from "lucide-react";
 
@@ -16,24 +17,29 @@ export const SetupPage: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   // Calculate password strength
   const getPasswordStrength = (pass: string) => {
     if (!pass) return { score: 0, label: "", class: "" };
     if (pass.length < 12) return { score: 1, label: "Weak (Min. 12 chars)", class: "weak" };
 
-    let score = 1; // base points for length >= 12
+    let criteriaMet = 0;
+    const hasLower = /[a-z]/.test(pass);
     const hasUpper = /[A-Z]/.test(pass);
     const hasNumber = /[0-9]/.test(pass);
     const hasSymbol = /[^A-Za-z0-9]/.test(pass);
 
-    if (hasUpper) score++;
-    if (hasNumber) score++;
-    if (hasSymbol) score++;
+    if (hasLower && hasUpper) criteriaMet++;
+    if (hasNumber) criteriaMet++;
+    if (hasSymbol) criteriaMet++;
+    if (pass.length >= 16) criteriaMet++;
 
-    if (score <= 1) return { score: 1, label: "Weak", class: "weak" };
-    if (score === 2) return { score: 2, label: "Fair", class: "fair" };
+    // Total score: base of 1 (for length >= 12) + criteriaMet (max 4)
+    const score = Math.min(4, 1 + criteriaMet);
+
+    if (score === 1) return { score: 1, label: "Weak (Use casing mix & numbers)", class: "weak" };
+    if (score === 2) return { score: 2, label: "Fair (Add numbers or symbols)", class: "fair" };
     if (score === 3) return { score: 3, label: "Strong", class: "strong" };
     return { score: 4, label: "Very strong", class: "very-strong" };
   };
@@ -44,30 +50,32 @@ export const SetupPage: React.FC = () => {
     e.preventDefault();
     if (step === 1) {
       if (password.length < 12) {
-        setError("Password must be at least 12 characters long.");
+        toast.error("Password must be at least 12 characters long.");
         return;
       }
-      setError("");
       setStep(2);
     } else if (step === 2) {
       if (password !== confirmPassword) {
-        setError("Passwords do not match.");
+        toast.error("Passwords do not match.");
         return;
       }
-      setError("");
       setStep(3);
     }
   };
 
   const handleFinalSubmit = async () => {
+    setLoading(true);
     try {
       await invoke("setup_vault", { password });
       setFirstLaunch(false);
       setLocked(false);
+      toast.success("Vault successfully set up!");
       navigate("/dashboard");
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      setError(message || "Failed to setup vault.");
+      toast.error(message || "Failed to setup vault.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -103,8 +111,7 @@ export const SetupPage: React.FC = () => {
               />
               <button 
                 type="button" 
-                className="password-toggle-btn"
-                style={{ top: "30px" }}
+                className="password-toggle-btn login-toggle-btn"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -117,8 +124,7 @@ export const SetupPage: React.FC = () => {
                   <div 
                     className={`strength-bar ${strength.class}`} 
                     style={{ 
-                      width: `${(strength.score / 4) * 100}%`,
-                      backgroundColor: `var(--color-${strength.class === "very-strong" ? "success" : strength.class === "strong" ? "info" : strength.class === "fair" ? "warning" : "danger"})`
+                      width: `${(strength.score / 4) * 100}%`
                     }}
                   ></div>
                 </div>
@@ -127,13 +133,14 @@ export const SetupPage: React.FC = () => {
             )}
 
             <div className="setup-warning">
-              <div className="setup-warning-text" style={{ display: "flex", gap: "var(--space-2)", alignItems: "flex-start" }}>
-                <ShieldAlert size={14} style={{ flexShrink: 0, marginTop: "2px" }} />
-                <span><strong>WARNING:</strong> If you forget this password, your data cannot be recovered. There is no reset option.</span>
+              <div className="setup-warning-text setup-warning-layout">
+                <ShieldAlert size={14} className="setup-warning-icon" />
+                <span>
+                  <strong>Important:</strong> VaultKey is a zero-knowledge local vault. We cannot reset your password, send a recovery link, or recover your data if you forget it. Please write it down and store it in a safe place.
+                </span>
               </div>
             </div>
 
-            {error && <div className="setup-error">{error}</div>}
             <Button type="submit" disabled={password.length < 12}>Next Step</Button>
           </form>
         )}
@@ -152,8 +159,7 @@ export const SetupPage: React.FC = () => {
               />
               <button 
                 type="button" 
-                className="password-toggle-btn"
-                style={{ top: "30px" }}
+                className="password-toggle-btn login-toggle-btn"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
               >
                 {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -161,22 +167,23 @@ export const SetupPage: React.FC = () => {
             </div>
 
             {confirmPassword && (
-              <div style={{ fontSize: "11px", marginBottom: "var(--space-4)", fontWeight: 500, color: password === confirmPassword ? "var(--color-success)" : "var(--color-danger)" }}>
+              <div className={password === confirmPassword ? "confirm-match-message" : "confirm-mismatch-message"}>
                 {password === confirmPassword ? "✓ Passwords match" : "✗ Passwords do not match"}
               </div>
             )}
 
             <div className="setup-warning">
-              <div className="setup-warning-text" style={{ display: "flex", gap: "var(--space-2)", alignItems: "flex-start" }}>
-                <ShieldAlert size={14} style={{ flexShrink: 0, marginTop: "2px" }} />
-                <span>Confirm your master password to prevent typos. It is derived strictly offline.</span>
+              <div className="setup-warning-text setup-warning-layout">
+                <ShieldAlert size={14} className="setup-warning-icon" />
+                <span>
+                  <strong>Typos happen:</strong> Confirming your master password ensures you didn't make a typo. Everything is calculated completely offline on your device, ensuring maximum security.
+                </span>
               </div>
             </div>
 
-            {error && <div className="setup-error">{error}</div>}
-            <div style={{ display: "flex", gap: "var(--space-3)" }}>
-              <Button type="button" variant="ghost" onClick={() => setStep(1)} style={{ flex: 1 }}>Back</Button>
-              <Button type="submit" disabled={password !== confirmPassword} style={{ flex: 1 }}>Confirm</Button>
+            <div className="setup-buttons-row">
+              <Button type="button" variant="ghost" onClick={() => setStep(1)}>Back</Button>
+              <Button type="submit" disabled={password !== confirmPassword}>Confirm</Button>
             </div>
           </form>
         )}
@@ -186,9 +193,9 @@ export const SetupPage: React.FC = () => {
             <div className="success-icon-container">
               <CheckCircle2 size={32} />
             </div>
-            <h3 style={{ fontSize: "14px", fontWeight: 500, color: "var(--color-text-primary)", marginBottom: "var(--space-2)" }}>Your vault is ready.</h3>
+            <h3 className="setup-success-title">Your vault is ready.</h3>
             <p>Your master password is secure. You can now start securing your keys.</p>
-            <Button onClick={handleFinalSubmit} style={{ width: "100%" }}>Enter VaultKey</Button>
+            <Button onClick={handleFinalSubmit} isLoading={loading} style={{ width: "100%" }}>Enter VaultKey</Button>
           </div>
         )}
       </div>

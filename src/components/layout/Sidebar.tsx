@@ -3,17 +3,24 @@ import { useVaultStore } from "../../store/vaultStore";
 import { invoke } from "@tauri-apps/api/tauri";
 import { 
   Key, Star, GraduationCap, Globe, Users, 
-  CreditCard, Terminal, Settings, KeyRound, Lock 
+  CreditCard, Terminal, Sun, Moon, KeyRound, Lock,
+  Download, Upload
 } from "lucide-react";
 
-export const Sidebar: React.FC = () => {
+interface SidebarProps {
+  onExportClick?: () => void;
+  onImportClick?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ onExportClick, onImportClick }) => {
   const activeCategory = useVaultStore((state) => state.activeCategory);
   const setActiveCategory = useVaultStore((state) => state.setActiveCategory);
   const entries = useVaultStore((state) => state.entries);
   const setGeneratorOpen = useVaultStore((state) => state.setGeneratorOpen);
+  const theme = useVaultStore((state) => state.theme);
+  const globalToggleTheme = useVaultStore((state) => state.toggleTheme);
   
   const [categories, setCategories] = useState<string[]>([]);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   // Load categories from database
   useEffect(() => {
@@ -28,16 +35,16 @@ export const Sidebar: React.FC = () => {
     fetchCategories();
   }, [entries]);
 
-  // Load theme on mount
-  useEffect(() => {
-    const activeTheme = (document.documentElement.getAttribute("data-theme") as "light" | "dark") || "light";
-    setTheme(activeTheme);
-  }, []);
-
-  const toggleTheme = () => {
+  const handleToggleTheme = async () => {
     const nextTheme = theme === "light" ? "dark" : "light";
-    setTheme(nextTheme);
-    document.documentElement.setAttribute("data-theme", nextTheme);
+    try {
+      await invoke("set_theme", { theme: nextTheme });
+      globalToggleTheme();
+    } catch (err) {
+      console.error("Failed to save theme choice:", err);
+      // Still toggle locally on error to be responsive
+      globalToggleTheme();
+    }
   };
 
   const getCategoryIcon = (catName: string) => {
@@ -119,22 +126,37 @@ export const Sidebar: React.FC = () => {
       <div className="sidebar-bottom">
         <div className="sidebar-bottom-actions">
           <button 
-            className="btn btn-ghost" 
-            style={{ width: "100%", justifyContent: "flex-start", gap: "var(--space-2)" }}
+            className="btn btn-ghost sidebar-generator-btn" 
             onClick={() => setGeneratorOpen(true)}
           >
             <KeyRound size={16} />
             <span>Generator</span>
           </button>
+
+          <button 
+            className="btn btn-ghost sidebar-generator-btn" 
+            onClick={onExportClick}
+          >
+            <Download size={16} />
+            <span>Export vault</span>
+          </button>
+
+          <button 
+            className="btn btn-ghost sidebar-generator-btn" 
+            onClick={onImportClick}
+          >
+            <Upload size={16} />
+            <span>Import backup</span>
+          </button>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "var(--space-2)" }}>
-          <span style={{ fontSize: "11px", color: "var(--color-text-secondary)", fontWeight: 500, textTransform: "uppercase" }}>Theme</span>
+        <div className="sidebar-theme-row">
+          <span className="sidebar-theme-label">Theme</span>
           <button 
             className="icon-btn" 
-            onClick={toggleTheme}
+            onClick={handleToggleTheme}
             title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
           >
-            <Settings size={16} />
+            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
           </button>
         </div>
       </div>

@@ -12,6 +12,11 @@ interface VaultStore {
   lockWarning: boolean;
   statusMessage: string | null;
   
+  // Loading & Theme States
+  isLoading: boolean;
+  loadingMessage: string | null;
+  theme: "light" | "dark";
+  
   // UI Modal States
   isGeneratorOpen: boolean;
   isEntryModalOpen: boolean;
@@ -28,6 +33,11 @@ interface VaultStore {
   setLockWarning: (warning: boolean) => void;
   setStatusMessage: (msg: string | null) => void;
   
+  // Loading & Theme Setters
+  setLoading: (loading: boolean, message?: string | null) => void;
+  setTheme: (theme: "light" | "dark") => void;
+  toggleTheme: () => void;
+  
   // UI Modal Setters
   setGeneratorOpen: (isOpen: boolean) => void;
   setEntryModalOpen: (isOpen: boolean) => void;
@@ -36,7 +46,6 @@ interface VaultStore {
   setEntryToDelete: (entry: VaultEntry | null) => void;
   refreshEntries: () => Promise<void>;
 }
-
 
 export const useVaultStore = create<VaultStore>((set) => ({
   isLocked: true,
@@ -47,6 +56,10 @@ export const useVaultStore = create<VaultStore>((set) => ({
   entries: [],
   lockWarning: false,
   statusMessage: null,
+  
+  isLoading: false,
+  loadingMessage: null,
+  theme: "light",
   
   isGeneratorOpen: false,
   isEntryModalOpen: false,
@@ -63,6 +76,10 @@ export const useVaultStore = create<VaultStore>((set) => ({
   setLockWarning: (warning) => set({ lockWarning: warning }),
   setStatusMessage: (statusMessage) => set({ statusMessage }),
   
+  setLoading: (isLoading, loadingMessage = null) => set({ isLoading, loadingMessage }),
+  setTheme: (theme) => set({ theme }),
+  toggleTheme: () => set((state) => ({ theme: state.theme === "light" ? "dark" : "light" })),
+  
   setGeneratorOpen: (isGeneratorOpen) => set({ isGeneratorOpen }),
   setEntryModalOpen: (isEntryModalOpen) => set({ isEntryModalOpen }),
   setDeleteModalOpen: (isDeleteModalOpen) => set({ isDeleteModalOpen }),
@@ -70,11 +87,14 @@ export const useVaultStore = create<VaultStore>((set) => ({
   setEntryToDelete: (entryToDelete) => set({ entryToDelete }),
   
   refreshEntries: async () => {
+    set({ isLoading: true, loadingMessage: "Loading vault entries..." });
     try {
       const data = await invoke<VaultEntry[]>("get_entries");
       set({ entries: data });
     } catch (err) {
       console.error("Failed to refresh entries:", err);
+    } finally {
+      set({ isLoading: false, loadingMessage: null });
     }
   },
 }));

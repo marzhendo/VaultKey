@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { useVaultStore } from "../../store/vaultStore";
+import { toast } from "../../store/toastStore";
 import { invoke } from "@tauri-apps/api/tauri";
 import { Trash2 } from "lucide-react";
 
@@ -17,19 +18,18 @@ export const DeleteConfirm: React.FC<DeleteConfirmProps> = ({
   const entryToDelete = useVaultStore((state) => state.entryToDelete);
   const refreshEntries = useVaultStore((state) => state.refreshEntries);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const handleDelete = async () => {
     if (!entryToDelete || !entryToDelete.id) return;
     setLoading(true);
-    setError("");
     try {
       await invoke("delete_entry", { id: entryToDelete.id });
       await refreshEntries();
+      toast.success(`Deleted ${entryToDelete.title}`);
       onClose();
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message || "Failed to delete entry.");
+      console.error(err);
+      toast.error("Failed to delete entry.");
     } finally {
       setLoading(false);
     }
@@ -45,34 +45,22 @@ export const DeleteConfirm: React.FC<DeleteConfirmProps> = ({
           <Button variant="ghost" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button variant="danger" onClick={handleDelete} disabled={loading}>
-            {loading ? "Deleting..." : "Delete"}
+          <Button variant="danger" onClick={handleDelete} isLoading={loading}>
+            Delete
           </Button>
         </div>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "var(--space-2) 0" }}>
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: "40px",
-          height: "40px",
-          borderRadius: "50%",
-          backgroundColor: "rgba(226, 75, 74, 0.15)",
-          color: "var(--color-danger)",
-          marginBottom: "var(--space-4)"
-        }}>
+      <div className="confirm-modal-body">
+        <div className="confirm-modal-icon">
           <Trash2 size={20} />
         </div>
         
-        {error && <div className="setup-error" style={{ marginBottom: "var(--space-3)" }}>{error}</div>}
-        
-        <h4 style={{ fontSize: "16px", fontWeight: 500, color: "var(--color-text-primary)", marginBottom: "var(--space-2)" }}>
+        <h4 className="confirm-modal-title">
           Delete entry?
         </h4>
         
-        <p style={{ fontSize: "13px", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>
+        <p className="confirm-modal-desc">
           This will permanently delete {entryToDelete?.title || "this entry"}. This action cannot be undone.
         </p>
       </div>
