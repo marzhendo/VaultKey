@@ -65,8 +65,9 @@ export const SetupPage: React.FC = () => {
       setFirstLaunch(false);
       setLocked(false);
       navigate("/dashboard");
-    } catch (err: any) {
-      setError(err?.toString() || "Failed to setup vault.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message || "Failed to setup vault.");
     }
   };
 

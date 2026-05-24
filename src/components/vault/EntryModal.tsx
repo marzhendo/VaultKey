@@ -6,6 +6,7 @@ import { useVaultStore } from "../../store/vaultStore";
 import { invoke } from "@tauri-apps/api/tauri";
 import { Eye, EyeOff, Sparkles } from "lucide-react";
 import { PasswordGenerator } from "./PasswordGenerator";
+import { VaultEntryDetail } from "../../types/vault";
 
 interface EntryModalProps {
   isOpen: boolean;
@@ -41,17 +42,18 @@ export const EntryModal: React.FC<EntryModalProps> = ({
         setLoading(true);
         setError("");
         try {
-          const detail = await invoke<any>("get_entry_detail", { id: entryToEdit.id });
+          const detail = await invoke<VaultEntryDetail>("get_entry_detail", { id: entryToEdit.id });
           setTitle(detail.title || "");
           setCategory(detail.category || "Campus");
           setUsername(detail.username || "");
-          // Set password to the placeholder string to hide the real password from memory
-          setPassword("••••••••");
+          // Keep password state empty to avoid storing decrypted password in memory/JS state
+          setPassword("");
           setUrl(detail.url || "");
           setNotes(detail.notes || "");
-        } catch (err: any) {
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
           setError("Failed to load details. Please unlock your vault or try again.");
-          console.error(err);
+          console.error(message);
         } finally {
           setLoading(false);
         }
@@ -85,9 +87,9 @@ export const EntryModal: React.FC<EntryModalProps> = ({
     try {
       if (isEditMode && entryToEdit.id) {
         // Secure Password Saving Logic:
-        // If the password field is left as the placeholder, fetch the existing password at the exact save moment
+        // If the password field is left empty (meaning unchanged from placeholder), fetch it on-demand
         let finalPassword = password;
-        if (finalPassword === "••••••••" || !finalPassword) {
+        if (!finalPassword) {
           finalPassword = await invoke<string>("get_entry_password", { id: entryToEdit.id });
         }
 
@@ -112,9 +114,9 @@ export const EntryModal: React.FC<EntryModalProps> = ({
       }
       await refreshEntries();
       onClose();
-    } catch (err: any) {
+    } catch (err) {
       // Map raw Rust errors to friendly messages
-      const errMsg = err?.toString() || "";
+      const errMsg = err instanceof Error ? err.message : String(err);
       if (errMsg.includes("Vault is locked")) {
         setError("Your vault session has expired. Please unlock the vault again.");
       } else if (errMsg.includes("Database")) {
@@ -122,7 +124,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
       } else {
         setError("Failed to save the entry. Please try again.");
       }
-      console.error(err);
+      console.error(errMsg);
     } finally {
       setLoading(false);
     }
@@ -190,7 +192,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password..."
+              placeholder={isEditMode ? "••••••••" : "Password..."}
             />
             <button 
               type="button" 

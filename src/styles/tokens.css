@@ -24,6 +24,19 @@
   --color-warning: #BA7517;
   --color-info:    #378ADD;
 
+  /* Category Colors */
+  --color-category-campus-bg:       #E8F0FE;
+  --color-category-campus-fg:       #1A73E8;
+  --color-category-google-bg:       #FCE8E8;
+  --color-category-google-fg:       #C5221F;
+  --color-category-social-bg:       #F3E8FD;
+  --color-category-social-fg:       #8430CE;
+  --color-category-finance-bg:      #E8F5E9;
+  --color-category-finance-fg:      #1D9E75;
+  --color-category-devtools-bg:     #F0F0F0;
+  --color-category-devtools-fg:     #3C3C3C;
+
+
   /* Spacing */
   --space-1: 4px;
   --space-2: 8px;

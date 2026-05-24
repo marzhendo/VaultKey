@@ -33,8 +33,9 @@ export const LoginPage: React.FC = () => {
         setError("Invalid master password.");
         triggerShake();
       }
-    } catch (err: any) {
-      setError(err?.toString() || "Failed to unlock vault.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message || "Failed to unlock vault.");
       triggerShake();
     }
   };

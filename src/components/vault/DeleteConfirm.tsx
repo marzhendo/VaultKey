@@ -27,8 +27,9 @@ export const DeleteConfirm: React.FC<DeleteConfirmProps> = ({
       await invoke("delete_entry", { id: entryToDelete.id });
       await refreshEntries();
       onClose();
-    } catch (err: any) {
-      setError(err?.toString() || "Failed to delete entry.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message || "Failed to delete entry.");
     } finally {
       setLoading(false);
     }
