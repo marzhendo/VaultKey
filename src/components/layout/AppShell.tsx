@@ -6,9 +6,15 @@ import { appWindow } from "@tauri-apps/api/window";
 
 interface AppShellProps {
   children: React.ReactNode;
+  onExportClick?: () => void;
+  onImportClick?: () => void;
 }
 
-export const AppShell: React.FC<AppShellProps> = ({ children }) => {
+export const AppShell: React.FC<AppShellProps> = ({ 
+  children,
+  onExportClick,
+  onImportClick,
+}) => {
   const handleMinimize = async () => {
     try {
       await appWindow.minimize();
@@ -44,7 +50,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         </div>
       </div>
       <div className="app-main-layout">
-        <Sidebar />
+        <Sidebar onExportClick={onExportClick} onImportClick={onImportClick} />
         <div className="app-content-area">
           <TopBar />
           <main className="app-main-content">{children}</main>

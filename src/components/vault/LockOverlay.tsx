@@ -1,15 +1,14 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Input } from "../components/ui/Input";
-import { Button } from "../components/ui/Button";
-import { useVaultStore } from "../store/vaultStore";
-import { toast } from "../store/toastStore";
+import { useVaultStore } from "../../store/vaultStore";
+import { toast } from "../../store/toastStore";
 import { invoke } from "@tauri-apps/api/tauri";
 import { Lock, Eye, EyeOff } from "lucide-react";
+import { Input } from "../ui/Input";
+import { Button } from "../ui/Button";
 
-export const LoginPage: React.FC = () => {
-  const navigate = useNavigate();
+export const LockOverlay: React.FC = () => {
   const setLocked = useVaultStore((state) => state.setLocked);
+  const refreshEntries = useVaultStore((state) => state.refreshEntries);
   
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -29,7 +28,9 @@ export const LoginPage: React.FC = () => {
       const success = await invoke<boolean>("unlock_vault", { password });
       if (success) {
         setLocked(false);
-        navigate("/dashboard");
+        setPassword("");
+        toast.success("Vault unlocked");
+        await refreshEntries();
       } else {
         toast.error("Incorrect master password.");
         triggerShake();
@@ -47,17 +48,17 @@ export const LoginPage: React.FC = () => {
     setIsShaking(true);
     setTimeout(() => {
       setIsShaking(false);
-    }, 350); // duration of the shake animation defined in components.css
+    }, 350);
   };
 
   return (
-    <div className="login-page">
-      <div className={`login-card ${isShaking ? "shake" : ""}`}>
+    <div className="lock-overlay-screen">
+      <div className={`lock-overlay-card ${isShaking ? "shake" : ""}`}>
         <div className="logo-container">
           <Lock size={24} />
         </div>
-        <h2 className="login-title">Unlock VaultKey</h2>
-        <p className="login-description">Your passwords, yours alone.</p>
+        <h2 className="login-title">VaultKey Locked</h2>
+        <p className="login-description">Enter master password to return to session.</p>
         
         <form onSubmit={handleSubmit} className="login-form">
           <div className="password-input-wrapper">
@@ -88,5 +89,4 @@ export const LoginPage: React.FC = () => {
   );
 };
 
-export default LoginPage;
-
+export default LockOverlay;

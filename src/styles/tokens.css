@@ -50,6 +50,25 @@
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
+
+  /* White text (untuk button primary/danger) */
+  --color-white: #FFFFFF;
+
+  /* Toast colors — light mode */
+  --color-toast-success-bg:     #E8F5E9;
+  --color-toast-success-fg:     #1B5E20;
+  --color-toast-error-bg:       #FEECEC;
+  --color-toast-error-fg:       #C62828;
+  --color-toast-warning-bg:     #FFF3E0;
+  --color-toast-warning-fg:     #E65100;
+  --color-toast-info-bg:        #E3F2FD;
+  --color-toast-info-fg:        #1565C0;
+
+  /* Overlay alphas */
+  --color-overlay-modal:        rgba(0, 0, 0, 0.45);
+  --color-overlay-lock-dark:    rgba(26, 26, 26, 0.45);
+  --color-overlay-lock-light:   rgba(245, 245, 243, 0.45);
+  --color-overlay-danger:       rgba(226, 75, 74, 0.15);
 }
 
 [data-theme="dark"] {
@@ -67,4 +86,14 @@
 
   --color-border:         rgba(255, 255, 255, 0.10);
   --color-border-strong:  rgba(255, 255, 255, 0.20);
+
+  /* Toast colors — dark mode */
+  --color-toast-success-bg:     #1B3821;
+  --color-toast-success-fg:     #C8E6C9;
+  --color-toast-error-bg:       #3C1E1E;
+  --color-toast-error-fg:       #FFCDD2;
+  --color-toast-warning-bg:     #3E2723;
+  --color-toast-warning-fg:     #FFE0B2;
+  --color-toast-info-bg:        #0D2D44;
+  --color-toast-info-fg:        #BBDEFB;
 }

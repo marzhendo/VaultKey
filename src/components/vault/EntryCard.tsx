@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useClipboard } from "../../hooks/useClipboard";
 import { useVaultStore } from "../../store/vaultStore";
+import { toast } from "../../store/toastStore";
 import { invoke } from "@tauri-apps/api/tauri";
 
 interface EntryCardProps {
@@ -30,7 +31,13 @@ export const EntryCard: React.FC<EntryCardProps> = ({
   const handleCopyUsername = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!entry.username) return;
-    await copyUsername(entry.username);
+    try {
+      await copyUsername(entry.username);
+      toast.success("Username copied — clears from clipboard in 30s");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to copy username.");
+    }
   };
 
   const handleCopyPassword = async (e: React.MouseEvent) => {
@@ -39,8 +46,10 @@ export const EntryCard: React.FC<EntryCardProps> = ({
     try {
       const password = await invoke<string>("get_entry_password", { id: entry.id });
       await copyPassword(password);
+      toast.success("Password copied — clears from clipboard in 30s");
     } catch (err) {
       console.error("Failed to copy password:", err);
+      toast.error("Failed to copy password.");
     }
   };
 
@@ -50,8 +59,10 @@ export const EntryCard: React.FC<EntryCardProps> = ({
     try {
       await invoke("toggle_favorite", { id: entry.id });
       await refreshEntries();
+      toast.success(entry.is_favorite ? "Removed from favorites" : "Added to favorites");
     } catch (err) {
       console.error("Failed to toggle favorite:", err);
+      toast.error("Failed to update favorite status.");
     }
   };
 
@@ -122,7 +133,7 @@ export const EntryCard: React.FC<EntryCardProps> = ({
             onClick={handleCopyUsername}
             title="Copy Username"
           >
-            {copiedUser ? <Check size={14} style={{ color: "var(--color-success)" }} /> : <Copy size={14} />}
+            {copiedUser ? <Check size={14} className="check-icon" /> : <Copy size={14} />}
           </button>
         )}
         <button
@@ -130,7 +141,7 @@ export const EntryCard: React.FC<EntryCardProps> = ({
           onClick={handleCopyPassword}
           title="Copy Password"
         >
-          {copiedPass ? <Check size={14} style={{ color: "var(--color-success)" }} /> : <Lock size={14} />}
+          {copiedPass ? <Check size={14} className="check-icon" /> : <Lock size={14} />}
         </button>
         <button 
           className="entry-action-btn" 

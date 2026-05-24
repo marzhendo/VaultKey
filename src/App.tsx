@@ -4,6 +4,7 @@ import { useVaultStore } from "./store/vaultStore";
 import { LoginPage } from "./pages/LoginPage";
 import { SetupPage } from "./pages/SetupPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { ToastContainer } from "./components/ui/ToastContainer";
 import { invoke } from "@tauri-apps/api/tauri";
 import "./styles/global.css";
 
@@ -51,8 +52,12 @@ interface ProtectedRouteProps {
   children: React.ReactElement;
 }
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const isLocked = useVaultStore((state) => state.isLocked);
-  return isLocked ? <Navigate to="/login" replace /> : children;
+  const isFirstLaunch = useVaultStore((state) => state.isFirstLaunch);
+  
+  if (isFirstLaunch) {
+    return <Navigate to="/setup" replace />;
+  }
+  return children;
 };
 
 // Global Keyboard Shortcut Manager
@@ -127,6 +132,40 @@ const ShortcutManager: React.FC<{ children: React.ReactNode }> = ({ children }) 
 };
 
 export const App: React.FC = () => {
+  const theme = useVaultStore((state) => state.theme);
+  const setTheme = useVaultStore((state) => state.setTheme);
+
+  // Initialize theme from Tauri configuration or system preference
+  useEffect(() => {
+    const initTheme = async () => {
+      try {
+        const savedTheme = await invoke<string>("get_theme");
+        if (savedTheme === "dark") {
+          setTheme("dark");
+        } else if (savedTheme === "light") {
+          // If light, double check system prefers-color-scheme as standard fallback for first-time launch
+          const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          if (systemPrefersDark) {
+            setTheme("dark");
+            await invoke("set_theme", { theme: "dark" }).catch(() => {});
+          } else {
+            setTheme("light");
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load theme:", err);
+        const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        setTheme(systemPrefersDark ? "dark" : "light");
+      }
+    };
+    initTheme();
+  }, [setTheme]);
+
+  // Apply theme class to HTML element on change
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
+
   return (
     <HashRouter>
       <ShortcutManager>
@@ -144,6 +183,7 @@ export const App: React.FC = () => {
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <ToastContainer />
       </ShortcutManager>
     </HashRouter>
   );

@@ -3,10 +3,11 @@ import { Modal } from "../ui/Modal";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import { useVaultStore } from "../../store/vaultStore";
+import { VaultEntryDetail } from "../../types/vault";
 import { invoke } from "@tauri-apps/api/tauri";
 import { Eye, EyeOff, Sparkles } from "lucide-react";
 import { PasswordGenerator } from "./PasswordGenerator";
-import { VaultEntryDetail } from "../../types/vault";
+import { toast } from "../../store/toastStore";
 
 interface EntryModalProps {
   isOpen: boolean;
@@ -113,16 +114,17 @@ export const EntryModal: React.FC<EntryModalProps> = ({
         });
       }
       await refreshEntries();
+      toast.success(isEditMode ? "Entry updated successfully!" : "Entry created successfully!");
       onClose();
     } catch (err) {
       // Map raw Rust errors to friendly messages
       const errMsg = err instanceof Error ? err.message : String(err);
       if (errMsg.includes("Vault is locked")) {
-        setError("Your vault session has expired. Please unlock the vault again.");
+        toast.error("Your vault session has expired. Please unlock the vault again.");
       } else if (errMsg.includes("Database")) {
-        setError("A database error occurred. Please try again.");
+        toast.error("A database error occurred. Please try again.");
       } else {
-        setError("Failed to save the entry. Please try again.");
+        toast.error("Failed to save entry. Please try again.");
       }
       console.error(errMsg);
     } finally {
@@ -140,8 +142,8 @@ export const EntryModal: React.FC<EntryModalProps> = ({
           <Button variant="ghost" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSubmit} disabled={loading || !title.trim()}>
-            {loading ? "Saving..." : "Save Entry"}
+          <Button variant="primary" onClick={handleSubmit} isLoading={loading} disabled={!title.trim()}>
+            Save Entry
           </Button>
         </div>
       }

@@ -46,6 +46,10 @@ fn main() {
             commands::entries::get_entry_password,
             commands::entries::get_entry_detail,
             commands::generator::generate_password,
+            commands::config::get_theme,
+            commands::config::set_theme,
+            commands::backup::export_vault,
+            commands::backup::import_vault,
         ])
         .run(context)
         .expect("error while running tauri application");

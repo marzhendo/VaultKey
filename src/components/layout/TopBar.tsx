@@ -14,8 +14,10 @@ export const TopBar: React.FC = () => {
     setEntryModalOpen(true);
   };
 
+  const isLoading = useVaultStore((state) => state.isLoading);
+
   return (
-    <header className="topbar">
+    <header className="topbar" style={{ position: "relative", overflow: "hidden" }}>
       <div className="topbar-search-container">
         <Search size={14} className="topbar-search-icon" />
         <input
@@ -43,6 +45,11 @@ export const TopBar: React.FC = () => {
           <span>New Entry</span>
         </button>
       </div>
+      {isLoading && (
+        <div className="topbar-loader-bar">
+          <div className="topbar-loader-indicator"></div>
+        </div>
+      )}
     </header>
   );
 };
