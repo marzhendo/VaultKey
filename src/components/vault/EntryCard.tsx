@@ -58,15 +58,15 @@ export const EntryCard: React.FC<EntryCardProps> = ({
   const getCategoryStyles = (category: string) => {
     switch (category) {
       case "Campus":
-        return { bg: "#E8F0FE", color: "#1A73E8" };
+        return { bg: "var(--color-category-campus-bg)", color: "var(--color-category-campus-fg)" };
       case "Google":
-        return { bg: "#FCE8E8", color: "#C5221F" };
+        return { bg: "var(--color-category-google-bg)", color: "var(--color-category-google-fg)" };
       case "Social Media":
-        return { bg: "#F3E8FD", color: "#8430CE" };
+        return { bg: "var(--color-category-social-bg)", color: "var(--color-category-social-fg)" };
       case "Finance":
-        return { bg: "#E8F5E9", color: "#1D9E75" };
+        return { bg: "var(--color-category-finance-bg)", color: "var(--color-category-finance-fg)" };
       case "Dev Tools":
-        return { bg: "#F0F0F0", color: "#3C3C3C" };
+        return { bg: "var(--color-category-devtools-bg)", color: "var(--color-category-devtools-fg)" };
       default:
         return {
           bg: "var(--color-bg-tertiary)",

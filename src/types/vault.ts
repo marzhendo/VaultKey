@@ -16,3 +16,12 @@ export interface DecryptedPayload {
   notes?: string;
 }
 
+export interface VaultEntryDetail {
+  id: number;
+  category: string;
+  title: string;
+  username: string;
+  url: string;
+  notes: string;
+}
+

@@ -44,8 +44,9 @@ export const PasswordGenerator: React.FC<PasswordGeneratorProps> = ({
         symbols,
       });
       setGeneratedPassword(pass);
-    } catch (err: any) {
-      setError(err?.toString() || "Failed to generate password.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message || "Failed to generate password.");
     }
   }, [length, uppercase, lowercase, numbers, symbols]);
 
