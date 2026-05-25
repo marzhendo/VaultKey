@@ -1,6 +1,6 @@
 <div align="center">
   <!-- Replace with actual logo when available -->
-  <img src="docs/screenshots/logo.png" alt="VaultKey Logo" width="80" />
+  <img src="icon.jpg" alt="VaultKey Logo" width="80" />
   
   # VaultKey
   
